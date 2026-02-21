@@ -1,0 +1,85 @@
+s<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cambiar Contraseña - GA7</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body>
+  <nav class="navbar">
+    <div class="nav-content">
+      <div class="nav-brand">
+        <img src="/img/logo.jpeg" alt="Logo GA7" class="logo-nav">
+        <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
+      </div>
+      <div class="nav-actions">
+        <div class="button-group">
+          <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="main-container">
+    <h1> Cambiar Contraseña</h1>
+    <p class="subtitle">Por seguridad, debe actualizar su contraseña para continuar.</p>
+
+    <div class="card" style="width: 100%; max-width: 520px; margin: 0 auto;">
+      <h3>Ingrese sus datos</h3>
+
+      <form id="formCambiar">
+        <label>Contraseña actual</label>
+        <input type="password" name="actual" required />
+        <a href=""></a>
+
+        <label>Nueva contraseña</label>
+        <input type="password" name="nueva" required />
+        <small style="display:block; margin:6px 0 14px 0; opacity:.85;">
+          Requisito: mínimo 10 caracteres, 1 mayúscula, 1 minúscula y 1 número.
+        </small>
+
+        <button type="submit" class="btn" id="btnGuardar">Guardar nueva contraseña</button>
+      </form>
+    </div>
+  </section>
+
+  <footer>ARTILLERIA AYER, HOY Y SIEMPRE</footer>
+
+  <script>
+    const form = document.getElementById("formCambiar");
+    const btn = document.getElementById("btnGuardar");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+
+      btn.disabled = true;
+      btn.innerText = "Guardando...";
+
+      try {
+        const res = await fetch("/api/auth/cambiar-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          alert(" Contraseña actualizada. Ingresando...");
+          window.location.href = "/home";
+        } else {
+          alert(" " + (result.message || "No se pudo actualizar"));
+        }
+      } catch (err) {
+        alert(" Error de comunicación con el servidor");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Guardar nueva contraseña";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Logística - GA7</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+<nav class="navbar">
+    <div class="nav-content">
+        <div class="nav-brand">
+            <img src="/img/logo.jpeg" alt="Logo GA7" class="logo-nav">
+            <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
+        </div>
+        <div class="nav-actions">
+            <h2 class="dept-name">Logistica</h2>
+            <div class="button-group">
+                <!-- IGUALITO: oculto por defecto y con id -->
+                <a href="/index" id="btn-inicio" class="btn btn-secondary" style="display:none;">🏠 Inicio</a>
+                <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<section class="main-container">
+    <h1>Gestión Documental - Logística</h1>
+
+    <div class="cards">
+        <div class="card">
+            <h3>📤 Subir Documento</h3>
+            <p>Cargar archivos del departamento.</p>
+            <button class="btn" onclick="mostrarFormulario()">Subir</button>
+        </div>
+        <div class="card">
+            <h3>📁 Consultar Documentos</h3>
+            <p>Buscar y gestionar archivos.</p>
+            <button class="btn" onclick="toggleConsulta()">Consultar / Eliminar</button>
+        </div>
+    </div>
+
+    <div id="formSubir" class="form-documento" style="display:none; margin-bottom: 30px;">
+        <h2>📤 Subir Documento</h2>
+        <form id="uploadFormLogistica" enctype="multipart/form-data">
+            <input type="hidden" name="dependencia_id" value="4">
+            <label>Tipo de Documento</label>
+            <select name="tipo_documento_id" required>
+                <option value="">Seleccione</option>
+                <option value="12">Pedido de Material</option>
+                <option value="13">Acta de Entrega</option>
+                <option value="14">Inventario</option>
+                <option value="15">Mantenimiento</option>
+                <option value="4">Informe</option>
+            </select>
+
+            <label>Fecha del Documento</label>
+            <input type="date" name="fecha_documento" required>
+
+            <label>Título / Descripción (Opcional)</label>
+            <input type="text" name="titulo" placeholder="Ej: Inventario Vehicular">
+
+            <label>Archivo</label>
+            <input type="file" name="archivo" required>
+
+            <button type="submit" class="btn" id="btnGuardar">Guardar Documento</button>
+        </form>
+    </div>
+
+    <div id="seccionConsulta" class="card" style="width: 100%; display: none;">
+        <h3>📁 Búsqueda y Gestión</h3>
+
+        <div class="filtros-busqueda">
+            <div>
+                <label>Tipo de Documento:</label>
+                <select id="filtroTipo" onchange="aplicarFiltros()">
+                    <option value="todos">Todos</option>
+                    <option value="12">Pedido de Material</option>
+                    <option value="13">Acta de Entrega</option>
+                    <option value="14">Inventario</option>
+                    <option value="15">Mantenimiento</option>
+                    <option value="4">Informe</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Filtrar por Fecha:</label>
+                <input type="date" id="filtroFecha" onchange="aplicarFiltros()">
+            </div>
+
+            <button class="btn" onclick="limpiarFiltros()" style="background:#666;">Limpiar Filtros</button>
+        </div>
+
+        <table class="tabla-consulta">
+            <thead>
+                <tr>
+                    <th>Tipo / Título</th>
+                    <th>Fecha</th>
+                    <th style="text-align: center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTabla">
+                <tr><td colspan="3" style="text-align:center;">Haga clic en consultar para cargar datos.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<footer>ARTILLERIA AYER, HOY Y SIEMPRE</footer>
+
+<script>
+let todosLosDocumentos = [];
+const DEPENDENCIA_ACTUAL = 4;
+
+// === IGUALITO: CONTROLAR BOTÓN DE INICIO ===
+async function verificarAccesoInicio() {
+    try {
+        const res = await fetch('/api/user-info');
+        const user = await res.json();
+        const btnInicio = document.getElementById("btn-inicio");
+
+        if (user.rol === "admin") {
+            btnInicio.style.display = "inline-block";
+        } else {
+            btnInicio.style.display = "none";
+        }
+    } catch (error) {
+        console.error("Error verificando rol:", error);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', verificarAccesoInicio);
+
+// --- SUBIR POR FETCH ---
+document.getElementById("uploadFormLogistica").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btnGuardar");
+    const formData = new FormData(e.target);
+
+    btn.disabled = true;
+    btn.innerText = "Guardando...";
+
+    try {
+        const response = await fetch("/subir-documento", {
+            method: "POST",
+            body: formData
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            alert("✅ Documento guardado correctamente en Logística.");
+            e.target.reset();
+            if (document.getElementById("seccionConsulta").style.display === "block") {
+                cargarDocumentos();
+            }
+        } else {
+            alert("❌ Error: " + (result.message || "No se pudo subir."));
+        }
+    } catch (error) {
+        alert("❌ Error de comunicación con el servidor.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Guardar Documento";
+    }
+});
+
+function mostrarFormulario() {
+    document.getElementById("formSubir").style.display = "block";
+    document.getElementById("seccionConsulta").style.display = "none";
+}
+
+function toggleConsulta() {
+    document.getElementById("seccionConsulta").style.display = "block";
+    document.getElementById("formSubir").style.display = "none";
+    cargarDocumentos();
+}
+
+async function cargarDocumentos() {
+    try {
+        const res = await fetch(`/api/documentos/${DEPENDENCIA_ACTUAL}`);
+        todosLosDocumentos = await res.json();
+        renderizarTabla(todosLosDocumentos);
+    } catch (error) { console.error("Error:", error); }
+}
+
+function renderizarTabla(lista) {
+    const cuerpo = document.getElementById("cuerpoTabla");
+    cuerpo.innerHTML = lista.length ? "" : "<tr><td colspan='3' style='text-align:center;'>No hay documentos.</td></tr>";
+
+    lista.forEach(doc => {
+        const fecha = new Date(doc.fecha_documento).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+        cuerpo.innerHTML += `
+            <tr>
+                <td>${doc.titulo || doc.tipo_nombre}</td>
+                <td>${fecha}</td>
+                <td style="text-align:center;">
+                    <a href="/${doc.archivo}" target="_blank" style="text-decoration:none; font-size:1.2rem; margin-right:15px;">🔍</a>
+                    <button class="btn-del" onclick="eliminarDocumento(${doc.id}, '${doc.archivo}')">🗑️</button>
+                </td>
+            </tr>`;
+    });
+}
+
+async function eliminarDocumento(id, ruta) {
+    if (!confirm("¿Eliminar archivo?")) return;
+
+    const res = await fetch(`/api/documentos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ruta })
+    });
+
+    if (res.ok) { alert("Eliminado"); cargarDocumentos(); }
+}
+
+function aplicarFiltros() {
+    const tipoVal = document.getElementById("filtroTipo").value;
+    const fechaVal = document.getElementById("filtroFecha").value;
+
+    renderizarTabla(todosLosDocumentos.filter(doc =>
+        (tipoVal === "todos" || doc.tipo_documento_id == tipoVal) &&
+        (!fechaVal || doc.fecha_documento.startsWith(fechaVal))
+    ));
+}
+
+function limpiarFiltros() {
+    document.getElementById("filtroTipo").value = "todos";
+    document.getElementById("filtroFecha").value = "";
+    renderizarTabla(todosLosDocumentos);
+}
+</script>
+</body>
+</html>

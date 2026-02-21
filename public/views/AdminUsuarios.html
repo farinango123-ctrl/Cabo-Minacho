@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel de Usuarios - GA7</title>
+  <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+
+<body>
+  <nav class="navbar">
+    <div class="nav-content">
+      <div class="nav-brand">
+        <img src="/img/logo.jpeg" alt="Logo GA7" class="logo-nav">
+        <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
+      </div>
+
+      <div class="nav-actions">
+        <div class="button-group">
+          <a href="/index" class="btn btn-secondary">🏠 Inicio</a>
+          <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="main-container">
+    <h1> Panel de Usuarios</h1>
+    <p class="subtitle">Restablecer contraseñas y administrar cuentas.</p>
+
+    <div class="card" style="width:100%;">
+      <h3>Usuarios registrados</h3>
+
+      <table class="tabla-consulta">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Dependencia</th>
+            <th>Forzar cambio</th>
+            <th style="text-align:center;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyUsers">
+          <tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>ARTILLERIA AYER, HOY Y SIEMPRE</footer>
+
+  <script>
+    const tbody = document.getElementById("tbodyUsers");
+
+    function depName(id) {
+      const map = {1:"Talento Humano",2:"Inteligencia",3:"Operaciones",4:"Logística"};
+      return map[id] || ("Dep " + id);
+    }
+
+    async function cargarUsuarios() {
+      try {
+        const res = await fetch("/api/admin/usuarios");
+        const users = await res.json();
+
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;"> No autorizado</td></tr>`;
+          return;
+        }
+
+        if (!users.length) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay usuarios</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = "";
+        users.forEach(u => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${u.usuario}</td>
+              <td>${u.rol}</td>
+              <td>${depName(u.dependencia_id)}</td>
+              <td>${Number(u.force_password_change) === 1 ? "Sí" : "No"}</td>
+              <td style="text-align:center;">
+                <button class="btn" onclick="resetPassword(${u.id}, '${u.usuario}')">Reset</button>
+              </td>
+            </tr>
+          `;
+        });
+
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;"> Error cargando usuarios</td></tr>`;
+      }
+    }
+
+    async function resetPassword(id, usuario) {
+      if (!confirm(`¿Resetear contraseña de ${usuario}?`)) return;
+
+      try {
+        const res = await fetch(`/api/admin/usuarios/${id}/reset-password`, { method: "POST" });
+        const result = await res.json();
+
+        if (res.ok && result.success) {
+          alert(`✅ Contraseña temporal de ${usuario}:\n\n${result.tempPassword}\n\n(Se le pedirá cambiarla al iniciar sesión)`);
+          cargarUsuarios();
+        } else {
+          alert("❌ " + (result.message || "No se pudo resetear"));
+        }
+      } catch (e) {
+        alert("❌ Error de comunicación con el servidor");
+      }
+    }
+
+    cargarUsuarios();
+  </script>
+</body>
+</html>

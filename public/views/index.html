@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Gestión - Archivo General GA7</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-content">
+      <div class="nav-brand">
+        <img src="/img/logo.jpeg" alt="Logo GA7" class="logo-nav">
+        <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
+      </div>
+
+      <div class="nav-actions">
+        <div class="button-group">
+          <!-- NUEVO: Panel Usuarios (solo lo verá el admin porque solo el admin entra a /index) -->
+          <a href="/admin_usuarios" class="btn btn-secondary"> Usuarios</a>
+
+          <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <section class="main-container">
+    <h1>DEPARTAMENTOS</h1>
+    <p class="subtitle">Seleccione un departamento para gestionar documentación.</p>
+
+    <div class="cards">
+      <div class="card">
+        <h3> Talento Humano</h3>
+        <p>Gestión de personal, permisos, evaluaciones.</p>
+        <a href="/talento_humano" class="btn">Ingresar</a>
+      </div>
+
+      <div class="card">
+        <h3> Inteligencia</h3>
+        <p>Documentación clasificada y reportes.</p>
+        <a href="/inteligencia" class="btn">Ingresar</a>
+      </div>
+
+      <div class="card">
+        <h3> Operaciones</h3>
+        <p>Órdenes, planes operativos y actividades.</p>
+        <a href="/operaciones" class="btn">Ingresar</a>
+      </div>
+
+      <div class="card">
+        <h3> Logística</h3>
+        <p>Inventarios, suministros y material bélico.</p>
+        <a href="/logistica" class="btn">Ingresar</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    ARTILLERIA AYER, HOY Y SIEMPRE
+  </footer>
+</body>
+</html>
