@@ -115,111 +115,100 @@ function isBcryptHash(value) {
 // ======================
 // SISTEMA DE AUTENTICACIÓN (LOGIN)
 // ======================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/login.html"));
+// Entrega el Login al entrar a la raíz o a /login
+app.get(["/", "/login"], (req, res) => {
+    res.sendFile(path.join(__dirname, "public","login.html"));
 });
 
+// Entrega el Index (Panel Principal)
+app.get("/index", auth, onlyAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, "public","views", "index.html"));
+});
+// Ruta Cambiar Clave
+app.get("/cambiar_clave", auth, (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "views", "CambiarClave.html"));
+});
 app.post("/login", (req, res) => {
   const { usuario, password } = req.body;
-
   const sql = "SELECT * FROM usuarios WHERE usuario = ? LIMIT 1";
 
   db.query(sql, [usuario], async (err, results) => {
     try {
-      if (err) return res.status(500).send("Error interno del servidor");
-      if (results.length === 0) return res.send("Usuario no encontrado");
-
-      const user = results[0];
-
-      // ✅ Compatibilidad: texto plano (viejo) -> lo migra a bcrypt al primer login
-      const esHash = isBcryptHash(user.password);
-
-      let esValida = false;
-      if (esHash) {
-        esValida = await bcrypt.compare(password, user.password);
-      } else {
-        esValida = password === user.password;
+      if (err) return res.status(500).json({ success: false, message: "Error en el servidor" });
+      
+      // ✅ Mensaje genérico: Esto permite que el HTML ejecute el borrado de campos
+      if (results.length === 0) {
+        return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
       }
 
-      if (!esValida) return res.send("Contraseña incorrecta");
+      const user = results[0];
+      const esHash = isBcryptHash(user.password);
+      let esValida = esHash ? await bcrypt.compare(password, user.password) : (password === user.password);
 
-      // ✅ Si era texto plano, migra a hash
+      if (!esValida) {
+        // ✅ Si falla la clave, mandamos este JSON para que el script limpie los cuadros
+        return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
+      }
+
+      // Migración a hash (Mantenemos tu lógica intacta)
       if (esValida && !esHash) {
         const nuevoHash = await bcrypt.hash(password, 12);
         db.query("UPDATE usuarios SET password=? WHERE id=?", [nuevoHash, user.id]);
         user.password = nuevoHash;
       }
 
-      // Guardar sesión
       req.session.user = user;
-      console.log(`✅ Sesión iniciada: ${user.usuario} (Rol: ${user.rol})`);
-
-      // ✅ Si debe cambiar contraseña, mandarlo a pantalla de cambio
-      // (Requiere que exista force_password_change en BD)
-      if (Number(user.force_password_change) === 1) {
-        return res.redirect("/cambiar_clave");
+      
+      let redirect = "/home";
+      if (Number(user.force_password_change) === 1) redirect = "/cambiar_clave";
+      else if (user.rol === "admin" || user.rol === "superadmin") redirect = "/index";
+      else {
+        const rutas = { 1: "/talento_humano", 2: "/inteligencia", 3: "/operaciones", 4: "/logistica" };
+        redirect = rutas[Number(user.dependencia_id)] || "/home";
       }
 
-      if (user.rol === "admin" || user.rol === "superadmin") return res.redirect("/index");
+      // ✅ Enviamos éxito y la ruta. Tu script se encarga del resto.
+      return res.json({ success: true, redirect });
 
-      const rutas = {
-        1: "/talento_humano",
-        2: "/inteligencia",
-        3: "/operaciones",
-        4: "/logistica",
-      };
-      return res.redirect(rutas[Number(user.dependencia_id)] || "/home");
     } catch (e) {
-      console.error("Error login:", e);
-      return res.status(500).send("Error interno del servidor");
+      return res.status(500).json({ success: false, message: "Error interno" });
     }
   });
 });
-
-// Página para cambiar contraseña (debes crear el HTML)
-app.get("/cambiar_clave", auth, (req, res) => {
-  res.sendFile(path.join(__dirname, "public/views/CambiarClave.html"));
-});
-
-// Endpoint para cambiar contraseña (usuario)
+// Endpoint para procesar el cambio de contraseña
 app.post("/api/auth/cambiar-password", auth, async (req, res) => {
-  const { actual, nueva } = req.body;
-  const userId = req.session.user.id;
+    const { actual, nueva } = req.body;
+    const userId = req.session.user.id;
 
-  if (!actual || !nueva) {
-    return res.status(400).json({ success: false, message: "Faltan campos" });
-  }
-  if (!passwordFuerte(nueva)) {
-    return res.status(400).json({
-      success: false,
-      message: "Contraseña débil (mín 10, mayúscula, minúscula y número)",
+    // Validación de campos
+    if (!actual || !nueva) {
+        return res.status(400).json({ success: false, message: "Todos los campos son obligatorios" });
+    }
+
+    db.query("SELECT password FROM usuarios WHERE id = ?", [userId], async (err, results) => {
+        if (err || results.length === 0) return res.status(500).json({ success: false, message: "Error de servidor" });
+
+        // Verificar contraseña actual (soporta texto plano y bcrypt)
+        const user = results[0];
+        const esValida = user.password.startsWith('$2b$') ? 
+                         await bcrypt.compare(actual, user.password) : 
+                         (actual === user.password);
+
+        if (!esValida) {
+            return res.status(400).json({ success: false, message: "La contraseña actual es incorrecta" });
+        }
+
+        // Encriptar nueva clave y actualizar
+        const nuevoHash = await bcrypt.hash(nueva, 12);
+        db.query("UPDATE usuarios SET password = ?, force_password_change = 0 WHERE id = ?", [nuevoHash, userId], (err) => {
+            if (err) return res.status(500).json({ success: false, message: "No se pudo actualizar" });
+            
+            // Actualizamos la sesión para que ya no pida cambio
+            req.session.user.force_password_change = 0;
+            res.json({ success: true, message: "Contraseña actualizada correctamente" });
+        });
     });
-  }
-
-  db.query("SELECT id, password FROM usuarios WHERE id=? LIMIT 1", [userId], async (err, rows) => {
-    if (err) return res.status(500).json({ success: false, message: "Error" });
-    if (!rows.length) return res.status(404).json({ success: false, message: "Usuario no existe" });
-
-    const ok = await bcrypt.compare(actual, rows[0].password);
-    if (!ok) return res.status(400).json({ success: false, message: "Contraseña actual incorrecta" });
-
-    const hash = await bcrypt.hash(nueva, 12);
-
-    db.query(
-      "UPDATE usuarios SET password=?, force_password_change=0 WHERE id=?",
-      [hash, userId],
-      (err2) => {
-        if (err2) return res.status(500).json({ success: false, message: "No se pudo actualizar" });
-
-        // refresca sesión (para que ya no quede forzado)
-        req.session.user.force_password_change = 0;
-
-        return res.json({ success: true, message: "Contraseña actualizada" });
-      }
-    );
-  });
 });
-
 // ======================
 // GESTIÓN DE ARCHIVOS (MULTER)
 // ======================
