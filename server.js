@@ -9,9 +9,7 @@ const crypto = require("crypto");
 
 const app = express();
 
-// ======================
 // CONFIGURACIÓN DE MIDDLEWARES
-// ======================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -23,15 +21,13 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 3600000, // 1 hora
-      secure: false, // true solo con HTTPS
+      maxAge: 3600000,
+      secure: false, 
     },
   })
 );
 
-// ======================
 // CONEXIÓN A BASE DE DATOS
-// ======================
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -47,10 +43,7 @@ db.connect((err) => {
   console.log("✅ Conexión establecida con la Base de Datos GA7");
 });
 
-// ======================
 // MIDDLEWARES DE SEGURIDAD
-// ======================
-
 function auth(req, res, next) {
   if (!req.session.user) return res.redirect("/");
   next();
@@ -60,7 +53,7 @@ function onlyAdmin(req, res, next) {
   const user = req.session.user;
   if (!user) return res.status(401).json({ success: false, message: "No autenticado" });
 
-  // Si quieres separar: "superadmin" y "admin"
+  // "superadmin" y "admin"
   if (user.rol !== "admin" && user.rol !== "superadmin") {
     return res.status(403).json({ success: false, message: "Sin permisos" });
   }
@@ -80,9 +73,7 @@ function permisoDependencia(idPermitido) {
   };
 }
 
-// ======================
 // HELPERS
-// ======================
 function folderByDepId(depId) {
   const folders = {
     1: "talento_humano",
@@ -92,12 +83,9 @@ function folderByDepId(depId) {
   };
   return folders[depId] || "otros";
 }
-
 function generarClaveTemporal() {
-  // fuerte y corta (sin caracteres raros)
-  return crypto.randomBytes(9).toString("base64url"); // ~12 chars
+  return crypto.randomBytes(9).toString("base64url"); 
 }
-
 function passwordFuerte(pw) {
   return (
     typeof pw === "string" &&
@@ -107,20 +95,16 @@ function passwordFuerte(pw) {
     /[0-9]/.test(pw)
   );
 }
-
 function isBcryptHash(value) {
   return typeof value === "string" && (value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$"));
 }
 
-// ======================
 // SISTEMA DE AUTENTICACIÓN (LOGIN)
-// ======================
-// Entrega el Login al entrar a la raíz o a /login
 app.get(["/", "/login"], (req, res) => {
     res.sendFile(path.join(__dirname, "public","login.html"));
 });
 
-// Entrega el Index (Panel Principal)
+// Entrega al Panel Principal
 app.get("/index", auth, onlyAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, "public","views", "index.html"));
 });
@@ -131,34 +115,28 @@ app.get("/cambiar_clave", auth, (req, res) => {
 app.post("/login", (req, res) => {
   const { usuario, password } = req.body;
   const sql = "SELECT * FROM usuarios WHERE usuario = ? LIMIT 1";
-
   db.query(sql, [usuario], async (err, results) => {
     try {
       if (err) return res.status(500).json({ success: false, message: "Error en el servidor" });
       
-      // ✅ Mensaje genérico: Esto permite que el HTML ejecute el borrado de campos
+      // permite que el HTML ejecute el borrado de campos
       if (results.length === 0) {
         return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
       }
-
       const user = results[0];
       const esHash = isBcryptHash(user.password);
       let esValida = esHash ? await bcrypt.compare(password, user.password) : (password === user.password);
 
       if (!esValida) {
-        // ✅ Si falla la clave, mandamos este JSON para que el script limpie los cuadros
+        // Si falla la clave  limpia los campos
         return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
       }
-
-      // Migración a hash (Mantenemos tu lógica intacta)
       if (esValida && !esHash) {
         const nuevoHash = await bcrypt.hash(password, 12);
         db.query("UPDATE usuarios SET password=? WHERE id=?", [nuevoHash, user.id]);
         user.password = nuevoHash;
       }
-
-      req.session.user = user;
-      
+      req.session.user = user;  
       let redirect = "/home";
       if (Number(user.force_password_change) === 1) redirect = "/cambiar_clave";
       else if (user.rol === "admin" || user.rol === "superadmin") redirect = "/index";
@@ -166,8 +144,6 @@ app.post("/login", (req, res) => {
         const rutas = { 1: "/talento_humano", 2: "/inteligencia", 3: "/operaciones", 4: "/logistica" };
         redirect = rutas[Number(user.dependencia_id)] || "/home";
       }
-
-      // ✅ Enviamos éxito y la ruta. Tu script se encarga del resto.
       return res.json({ success: true, redirect });
 
     } catch (e) {
@@ -188,7 +164,7 @@ app.post("/api/auth/cambiar-password", auth, async (req, res) => {
     db.query("SELECT password FROM usuarios WHERE id = ?", [userId], async (err, results) => {
         if (err || results.length === 0) return res.status(500).json({ success: false, message: "Error de servidor" });
 
-        // Verificar contraseña actual (soporta texto plano y bcrypt)
+        // Verificar contraseña actual 
         const user = results[0];
         const esValida = user.password.startsWith('$2b$') ? 
                          await bcrypt.compare(actual, user.password) : 
@@ -209,15 +185,13 @@ app.post("/api/auth/cambiar-password", auth, async (req, res) => {
         });
     });
 });
-// ======================
+
 // GESTIÓN DE ARCHIVOS (MULTER)
-// ======================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const user = req.session.user;
     if (!user) return cb(new Error("Sesión no válida"));
 
-    // admin puede elegir dependencia, usuario normal no
     const depIdFinal =
       user.rol === "admin" || user.rol === "superadmin"
         ? Number(req.body.dependencia_id || 4)
@@ -235,9 +209,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ======================
 // RUTAS DE NAVEGACIÓN
-// ======================
 app.get("/home", auth, (req, res) => {
   const user = req.session.user;
   if (user.rol === "admin" || user.rol === "superadmin") return res.redirect("/index");
@@ -276,9 +248,7 @@ app.get("/logistica", auth, permisoDependencia(4), (req, res) => {
   res.sendFile(path.join(__dirname, "public/views/Logistica.html"));
 });
 
-// ======================
 // API Y OPERACIONES (CRUD)
-// ======================
 app.get("/api/user-info", auth, (req, res) => {
   res.json({
     rol: req.session.user.rol,
@@ -286,11 +256,8 @@ app.get("/api/user-info", auth, (req, res) => {
   });
 });
 
-// ======================
-// ADMIN: USUARIOS (SUPER USUARIO)
-// ======================
 
-// Lista usuarios (para panel admin)
+// ADMIN: USUARIOS (SUPER USUARIO)
 app.get("/api/admin/usuarios", auth, onlyAdmin, (req, res) => {
   db.query(
     "SELECT id, usuario, rol, dependencia_id, force_password_change FROM usuarios ORDER BY id DESC",
@@ -316,16 +283,12 @@ app.post("/api/admin/usuarios/:id/reset-password", auth, onlyAdmin, async (req, 
       if (!result || result.affectedRows === 0) {
         return res.status(404).json({ success: false, message: "Usuario no encontrado" });
       }
-
-      // SOLO se muestra una vez al admin
       res.json({ success: true, tempPassword });
     }
   );
 });
 
-// ======================
 // DOCUMENTOS
-// ======================
 app.get("/api/documentos/:dependencia", auth, (req, res) => {
   const user = req.session.user;
   const depSolicitada = Number(req.params.dependencia);
@@ -392,8 +355,7 @@ app.delete("/api/documentos/:id", auth, (req, res) => {
     if (err) return res.status(500).json({ error: "Error al borrar registro" });
 
     if (ruta) {
-      // ruta viene tipo "uploads
-      const rutaArchivo = path.join(__dirname, ruta.replace(/^\/+/, ""));
+            const rutaArchivo = path.join(__dirname, ruta.replace(/^\/+/, ""));
       if (fs.existsSync(rutaArchivo)) fs.unlinkSync(rutaArchivo);
     }
 
@@ -405,9 +367,7 @@ app.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/"));
 });
 
-// ======================
 // ARRANQUE DEL SERVIDOR
-// ======================
 const PORT = 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 SERVIDOR GA7 PROTEGIDO INICIADO`);

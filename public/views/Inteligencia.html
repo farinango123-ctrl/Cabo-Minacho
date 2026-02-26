@@ -15,9 +15,8 @@
             <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
         </div>
         <div class="nav-actions">
-            <h2 class="dept-name">Inteligencia</h2>
+            <h2 class="dept-name">🕵️‍♂️Inteligencia</h2>
             <div class="button-group">
-                <!-- IGUALITO: oculto por defecto y con id -->
                 <a href="/index" id="btn-inicio" class="btn btn-secondary" style="display:none;">🏠 Inicio</a>
                 <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
             </div>
@@ -112,7 +111,6 @@
 let todosLosDocumentos = [];
 const DEPENDENCIA_ACTUAL = 2;
 
-// === IGUALITO: CONTROLAR BOTÓN INICIO POR ROL ===
 async function verificarAccesoInicio() {
     try {
         const res = await fetch('/api/user-info');
@@ -131,7 +129,6 @@ async function verificarAccesoInicio() {
 
 window.addEventListener('DOMContentLoaded', verificarAccesoInicio);
 
-// --- SUBIDA (con botón deshabilitado y reset) ---
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("btnGuardar");

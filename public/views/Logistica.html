@@ -15,9 +15,8 @@
             <span class="nav-title">SISTEMA DE GESTIÓN DOCUMENTAL - GA7</span>
         </div>
         <div class="nav-actions">
-            <h2 class="dept-name">Logistica</h2>
+            <h2 class="dept-name">📦Logistica</h2>
             <div class="button-group">
-                <!-- IGUALITO: oculto por defecto y con id -->
                 <a href="/index" id="btn-inicio" class="btn btn-secondary" style="display:none;">🏠 Inicio</a>
                 <button class="btn btn-danger" onclick="window.location.href='/logout'">Cerrar Sesión</button>
             </div>
@@ -113,7 +112,6 @@
 let todosLosDocumentos = [];
 const DEPENDENCIA_ACTUAL = 4;
 
-// === IGUALITO: CONTROLAR BOTÓN DE INICIO ===
 async function verificarAccesoInicio() {
     try {
         const res = await fetch('/api/user-info');
@@ -132,7 +130,6 @@ async function verificarAccesoInicio() {
 
 window.addEventListener('DOMContentLoaded', verificarAccesoInicio);
 
-// --- SUBIR POR FETCH ---
 document.getElementById("uploadFormLogistica").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("btnGuardar");
