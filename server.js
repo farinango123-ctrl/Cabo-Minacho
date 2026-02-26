@@ -213,7 +213,6 @@ const upload = multer({ storage });
 app.get("/home", auth, (req, res) => {
   const user = req.session.user;
   if (user.rol === "admin" || user.rol === "superadmin") return res.redirect("/index");
-
   const rutas = {
     1: "/talento_humano",
     2: "/inteligencia",
